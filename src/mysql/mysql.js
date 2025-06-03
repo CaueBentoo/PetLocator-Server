@@ -1,21 +1,21 @@
+require('dotenv').config();
 const mysql = require('mysql2/promise');
 
 async function run() {
   const connection = await mysql.createConnection({
-    host: 'localhost', // Endereço do servidor MySQL
-    user: 'root', // Nome de usuário do MySQL
-    password: 'clbclb10', // Senha do usuário do MySQL
-    database: 'pet_locator' // Nome do banco de dados MySQL
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT
   });
 
   try {
-    // Use a conexão aqui
     console.log('Conexão com o MySQL estabelecida com sucesso!');
-
+    // Aqui você pode adicionar código para executar consultas.
   } catch (err) {
     console.error('Erro ao executar consulta:', err);
   } finally {
-    // Feche a conexão
     await connection.end();
   }
 }
