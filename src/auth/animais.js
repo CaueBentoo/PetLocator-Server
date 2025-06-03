@@ -1,77 +1,62 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 5432,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
 async function getAnimais() {
-  let connection;
+  const client = await pool.connect();
 
   try {
-    // Crie uma conexão com o MySQL
-    connection = await mysql.createConnection({
-      host: 'localhost', // Endereço do servidor MySQL
-      user: 'root', // Nome de usuário do MySQL
-      password: 'clbclb10', // Senha do usuário do MySQL
-      database: 'pet_locator' // Nome do banco de dados MySQL
-    });
+    const query = `
+      SELECT * FROM animais
+      WHERE encontrado = 'N'
+    `;
 
-    // Execute a consulta SQL com os valores dos parâmetros
-    const [result] = await connection.execute(`
-      select animais.* from animais
-      where encontrado = 'N'
-    `);
-
-    await connection.commit();
-    return result;
+    const result = await client.query(query);
+    return result.rows;  // array de objetos
 
   } catch (err) {
-    console.error(err);
+    console.error('Erro ao buscar animais:', err);
+    throw err;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    client.release();
   }
 }
-
 
 async function insertAnimais(nome, caracteristicas, endereco, bairro, cidade, estado, telefone, tipo, data, nomefoto) {
-  let connection;
-  
+  const client = await pool.connect();
+
   try {
-    // Crie uma conexão com o MySQL
-    connection = await mysql.createConnection({
-      host: 'localhost', // Endereço do servidor MySQL
-      user: 'root', // Nome de usuário do MySQL
-      password: 'clbclb10', // Senha do usuário do MySQL
-      database: 'pet_locator' // Nome do banco de dados MySQL
-    });
-  
-    // Crie um array com os valores dos parâmetros
-    const values = [nome, caracteristicas, endereco, bairro, cidade, estado, telefone, tipo, data, nomefoto, '1', 'N'];
-  
-    // Execute a consulta SQL com os valores dos parâmetros
-    const [result] = await connection.execute(`
-      INSERT INTO animais (nome, caracteristicas, endereco, bairro, cidade, estado, telefone, tipo, data, nome_foto, idusuario, encontrado) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, values);
-  
-    await connection.commit();
-  
-    return result;
-  
+    const values = [
+      nome, caracteristicas, endereco, bairro, cidade,
+      estado, telefone, tipo, data, nomefoto, '1', 'N'
+    ];
+
+    const query = `
+      INSERT INTO animais 
+      (nome, caracteristicas, endereco, bairro, cidade, estado, telefone, tipo, data, nome_foto, idusuario, encontrado)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *
+    `;
+
+    const result = await client.query(query, values);
+    return result.rows[0];  // retorna o objeto inserido
+
   } catch (err) {
-    console.error(err);
+    console.error('Erro ao inserir animal:', err);
+    throw err;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    client.release();
   }
 }
-
 
 module.exports = { getAnimais, insertAnimais };

@@ -1,45 +1,45 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 5432,
+  ssl: {
+    rejectUnauthorized: false // importante para a Render
+  }
+});
+
 async function insertUsuarios(nome, telefone, email, senha) {
-  let connection;
+  const client = await pool.connect();
+
+  console.log('nome: '+ nome)
 
   try {
-    // Crie uma conexão com o MySQL
-    connection = await mysql.createConnection({
-      host: 'localhost', // Endereço do servidor MySQL
-      user: 'root', // Nome de usuário do MySQL
-      password: 'clbclb10', // Senha do usuário do MySQL
-      database: 'pet_locator' // Nome do banco de dados MySQL
-    });
-
     const senhaHash = bcrypt.hashSync(senha, 10);
 
-    // Crie um array com os valores dos parâmetros
+    const query = `
+      INSERT INTO usuarios (nome, telefone, email, senha)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *;
+    `;
+
     const values = [nome, telefone, email, senhaHash];
 
-    // Execute a consulta SQL com os valores dos parâmetros
-    const [result] = await connection.execute(`
-      INSERT INTO USUARIOS(NOME, TELEFONE, EMAIL, SENHA) 
-      VALUES(?, ?, ?, ?)
-    `, values);
+    const result = await client.query(query, values);
 
-    await connection.commit();
+    console.log('Usuário inserido com sucesso:', result.rows[0]);
 
-    return result;
+    return result.rows[0]; // Retorna o usuário inserido
 
   } catch (err) {
-    console.error(err);
+    console.error('Erro ao inserir usuário:', err);
+    throw err;
   } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    client.release();
   }
 }
-
 
 module.exports = { insertUsuarios };

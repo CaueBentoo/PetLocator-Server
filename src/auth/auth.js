@@ -1,34 +1,35 @@
-const mysql = require('mysql2/promise'); // Importe o pacote mysql2
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 5432,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
 async function auth(email) {
-  let connection;
+  const client = await pool.connect();
 
   try {
-    // Crie uma conexão com o MySQL
-    connection = await mysql.createConnection({
-      host: 'localhost', // Endereço do servidor MySQL
-      user: 'root', // Nome de usuário do MySQL
-      password: 'clbclb10', // Senha do usuário do MySQL
-      database: 'pet_locator' // Nome do banco de dados MySQL
-    });
 
-    // Execute a consulta SQL
-    const result = await connection.execute(`SELECT * FROM USUARIOS WHERE EMAIL = '${email}'`);
+    const query = `SELECT * FROM usuarios WHERE email = $1`;
+    const values = [email];
 
-    return result
+    const result = await client.query(query, values);
+
+    return result.rows;
 
   } catch (err) {
-    console.error(err);
+    console.error('Erro na autenticação:', err);
+    throw err;
   } finally {
-    if (connection) {
-      try {
-        await connection.end(); // Feche a conexão com o MySQL
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    client.release();
   }
 }
-
 
 module.exports = auth;
